@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use http::Method;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs::File;
@@ -11,15 +10,15 @@ use url::Url;
 #[derive(Debug, Deserialize, Serialize, Clone, Copy)]
 #[serde(rename_all = "lowercase")]
 pub enum Protocol {
-    HTTP,
-    HTTPS,
+    Http,
+    Https,
 }
 
 impl ToString for Protocol {
     fn to_string(&self) -> String {
         match self {
-            Self::HTTP => "http",
-            Self::HTTPS => "https",
+            Self::Http => "http",
+            Self::Https => "https",
         }
         .to_string()
     }
@@ -34,30 +33,32 @@ pub enum HttpVersion {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy)]
+#[serde(rename_all = "UPPERCASE")]
+
 pub enum HttpMethod {
-    GET,
-    POST,
-    PUT,
-    DELETE,
-    HEAD,
-    OPTIONS,
-    CONNECT,
-    TRACE,
-    PATCH,
+    Get,
+    Post,
+    Put,
+    Delete,
+    Head,
+    Options,
+    Connect,
+    Trace,
+    Patch,
 }
 
 impl HttpMethod {
     pub fn to_method(&self) -> http::Method {
         match self {
-            Self::GET => http::Method::GET,
-            Self::POST => http::Method::POST,
-            Self::PUT => http::Method::PUT,
-            Self::DELETE => http::Method::DELETE,
-            Self::HEAD => http::Method::HEAD,
-            Self::OPTIONS => http::Method::OPTIONS,
-            Self::CONNECT => http::Method::CONNECT,
-            Self::TRACE => http::Method::TRACE,
-            Self::PATCH => http::Method::PATCH,
+            Self::Get => http::Method::GET,
+            Self::Post => http::Method::POST,
+            Self::Put => http::Method::PUT,
+            Self::Delete => http::Method::DELETE,
+            Self::Head => http::Method::HEAD,
+            Self::Options => http::Method::OPTIONS,
+            Self::Connect => http::Method::CONNECT,
+            Self::Trace => http::Method::TRACE,
+            Self::Patch => http::Method::PATCH,
         }
     }
 }
@@ -159,7 +160,7 @@ impl TrafficScenario {
         let request = self.requests[0].clone();
         let server = self.servers[0].clone();
         let endpoint = format!(
-            "{}://{}:{}/{}",
+            "{}://{}:{}{}",
             server.protocol.to_string(),
             server.host,
             server.port,
@@ -171,7 +172,6 @@ impl TrafficScenario {
                 .build()
                 .unwrap(),
             HttpVersion::V2_0 => reqwest::blocking::Client::builder()
-                .http2_prior_knowledge()
                 .http2_prior_knowledge()
                 .build()
                 .unwrap(),
