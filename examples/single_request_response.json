@@ -1,0 +1,45 @@
+{
+    "servers": [
+        {
+            "id": 1,
+            "protocol": "http",
+            "host": "localhost",
+            "port": 8080,
+            "authorization": false,
+            "http_version": "v1_1"
+        }
+    ],
+    "requests": [
+        {
+            "id": 1,
+            "server_id": 1,
+            "depends": [],
+            "method": "GET",
+            "path": "/api/v1/users",
+            "content": {
+                "headers": {
+                    "Content-Type": "application/json"
+                },
+                "body": {
+                    "name": "John Doe",
+                    "age": 30
+                }
+            }
+        }
+    ],
+    "responses": [
+        {
+            "id": 1,
+            "request_id": 1,
+            "expected": {
+                "status": 200,
+                "headers": {
+                    "Content-Type": "application/json"
+                },
+                "body": {
+                    "result": "ok"
+                }
+            }
+        }
+    ]
+}
