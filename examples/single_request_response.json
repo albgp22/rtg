@@ -1,4 +1,10 @@
 {
+    "config": {
+        "name": "Single request with response",
+        "description": "This is an example of a single request with response at rate 5",
+        "author": "albgp22",
+        "rate": 5
+    },
     "servers": [
         {
             "id": 1,
@@ -24,7 +30,8 @@
                     "name": "John Doe",
                     "age": 30
                 }
-            }
+            },
+            "timeout_ms": 1000
         }
     ],
     "responses": [
