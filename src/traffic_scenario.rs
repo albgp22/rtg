@@ -1,11 +1,12 @@
 use std::collections::HashMap;
+use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::fmt;
 use std::fs::File;
 use std::io::{self, Read};
 use thiserror::Error;
-use url::Url;
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy)]
 #[serde(rename_all = "lowercase")]
@@ -14,13 +15,16 @@ pub enum Protocol {
     Https,
 }
 
-impl ToString for Protocol {
-    fn to_string(&self) -> String {
-        match self {
-            Self::Http => "http",
-            Self::Https => "https",
-        }
-        .to_string()
+impl fmt::Display for Protocol {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Http => "http",
+                Self::Https => "https",
+            }
+        )
     }
 }
 
@@ -64,56 +68,67 @@ impl HttpMethod {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct TrafficScenarioConfig {
+    pub name: String,
+    pub rate: u64,
+    pub description: String,
+    pub author: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct TrafficScenario {
-    servers: Vec<Server>,
-    requests: Vec<Request>,
-    responses: Vec<Response>,
+    pub config: TrafficScenarioConfig,
+    pub servers: Vec<Server>,
+    pub requests: Vec<Request>,
+    pub responses: Vec<Response>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Server {
-    id: u32,
-    protocol: Protocol,
-    host: String,
-    port: u32,
-    authorization: bool,
-    http_version: HttpVersion,
+    pub id: u32,
+    pub protocol: Protocol,
+    pub host: String,
+    pub port: u32,
+    pub authorization: bool,
+    pub http_version: HttpVersion,
+    pub authz_token: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Request {
-    id: u32,
-    server_id: u32,
-    path: String,
-    method: HttpMethod,
-    content: RequestContent,
-    depends: Vec<u32>,
+    pub id: u32,
+    pub server_id: u32,
+    pub path: String,
+    pub method: HttpMethod,
+    pub content: RequestContent,
+    pub depends: Vec<u32>,
+    pub timeout_ms: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct RequestContent {
-    headers: HashMap<String, String>,
-    body: Value,
+    pub headers: HashMap<String, String>,
+    pub body: Value,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ResponseContent {
-    headers: HashMap<String, String>,
-    body: Value,
-    status: u32,
+    pub headers: HashMap<String, String>,
+    pub body: Value,
+    pub status: u16,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Header {
-    name: String,
-    value: String,
+    pub name: String,
+    pub value: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Response {
-    id: u32,
-    request_id: u32,
-    expected: ResponseContent,
+    pub id: u32,
+    pub request_id: u32,
+    pub expected: ResponseContent,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -150,37 +165,31 @@ impl TrafficScenario {
         self.responses.push(response);
     }
 
-    pub fn build_dependency_graph(&self) -> HashMap<u32, Vec<u32>> {
+    pub fn build_dependency_graph(&self) -> (Vec<u32>, HashMap<u32, Vec<u32>>) {
+        let ids = self.requests.iter().map(|r| r.id).collect::<Vec<u32>>();
         let mut graph: HashMap<u32, Vec<u32>> = HashMap::new();
+        for id in ids.iter() {
+            graph.insert(*id, self.get_request_by_id(*id).depends.clone());
+        }
 
-        graph
+        (ids, graph)
     }
 
-    pub fn run(&self) -> Result<RuntimeStatistics, TrafficScenarioError> {
-        let request = self.requests[0].clone();
-        let server = self.servers[0].clone();
-        let endpoint = format!(
-            "{}://{}:{}{}",
-            server.protocol.to_string(),
-            server.host,
-            server.port,
-            request.path
-        );
-        let client = match server.http_version {
-            HttpVersion::V1_0 | HttpVersion::V1_1 => reqwest::blocking::Client::builder()
-                .http1_only()
-                .build()
-                .unwrap(),
-            HttpVersion::V2_0 => reqwest::blocking::Client::builder()
-                .http2_prior_knowledge()
-                .build()
-                .unwrap(),
-        };
-        client
-            .request(request.method.to_method(), Url::parse(&endpoint).unwrap())
-            .json(&request.content.body)
-            .send()
-            .unwrap();
-        Ok(RuntimeStatistics {})
+    pub fn get_response_by_request_id(&self, request_id: u32) -> Option<&Response> {
+        self.responses.iter().find(|r| r.request_id == request_id)
+    }
+
+    pub fn get_request_by_id(&self, request_id: u32) -> &Request {
+        self.requests
+            .iter()
+            .find(|r| r.id == request_id)
+            .expect(&format!("Request {} not found", request_id))
+    }
+
+    pub fn get_server_by_id(&self, server_id: u32) -> &Server {
+        self.servers
+            .iter()
+            .find(|s| s.id == server_id)
+            .expect(&format!("Server {} not found", server_id))
     }
 }
